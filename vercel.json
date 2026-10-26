@@ -1,1 +1,17 @@
+<<<<<<< HEAD
 {"version": 2, "builds": [{"src": "app.py", "use": "@vercel/python"}], "routes": [{"src": "/(.*)", "dest": "app.py"}]}
+=======
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "50mb", "includeFiles": ["fonts/**"] }
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "app.py" }
+  ]
+}
+>>>>>>> 4a439b2436400b998b2a090578c49127a381667d

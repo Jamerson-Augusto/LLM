@@ -1,3 +1,12 @@
+<<<<<<< HEAD
 .env
 __pycache__/
 *.pyc
+=======
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+.vercel/
+>>>>>>> 4a439b2436400b998b2a090578c49127a381667d

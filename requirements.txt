@@ -1,4 +1,7 @@
 flask
 requests
 pillow
+<<<<<<< HEAD
 python-dotenv
+=======
+>>>>>>> 4a439b2436400b998b2a090578c49127a381667d
