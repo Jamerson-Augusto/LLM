@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerador de Frases LLM</title>
+  <style>
+    :root { --bg:#f5f6fa; --card:#fff; --ink:#1f2430; --muted:#6b7280; --accent:#4f46e5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink);
+           display:flex; justify-content:center; padding:40px 16px; }
+    .app { width:100%; max-width:560px; }
+    h1 { margin:0 0 4px; font-size:1.5rem; }
+    .sub { color:var(--muted); font-size:.85rem; margin-bottom:20px; }
+    .tabs { display:flex; gap:4px; }
+    .tab { padding:10px 20px; border:0; background:#e5e7eb; border-radius:10px 10px 0 0;
+           cursor:pointer; font-size:.95rem; color:var(--muted); }
+    .tab.active { background:var(--card); color:var(--ink); font-weight:600; }
+    .panel { display:none; background:var(--card); padding:24px; border-radius:0 12px 12px 12px;
+             box-shadow:0 4px 18px rgba(0,0,0,.06); }
+    .panel.active { display:block; }
+    label { display:block; font-size:.8rem; font-weight:600; margin:14px 0 6px;
+            text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+    select { width:100%; padding:11px 12px; border:1px solid #d1d5db; border-radius:8px;
+             font-size:1rem; background:#fff; }
+    button.run { margin-top:22px; width:100%; padding:13px; border:0; border-radius:8px;
+                 background:var(--accent); color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+    button.run:disabled { opacity:.6; cursor:wait; }
+    .bloco { margin-bottom:18px; }
+    .bloco .rotulo { font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    .frase { font-size:1.4rem; font-weight:600; margin-top:4px; }
+    .traducao { font-size:1.15rem; margin-top:4px; color:#374151; }
+    .tags { display:flex; gap:8px; margin-bottom:18px; }
+    .tag { background:#eef2ff; color:var(--accent); padding:4px 10px; border-radius:999px; font-size:.8rem; }
+    .gif { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:14px;
+           margin-bottom:18px; background:#1e1b5a; box-shadow:0 6px 22px rgba(0,0,0,.15); }
+    .gif.carregando { opacity:.55; transition:opacity .2s; }
+    details { font-size:.85rem; color:var(--muted); }
+    .erro { color:#b91c1c; }
+    .vazio { color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Gerador de Frases LLM</h1>
+    <div class="sub">Provedor: {{ provedor }}</div>
+
+    <img id="gif" class="gif" alt="GIF animado com a frase gerada"
+         src="/api/gif?frase=Gerador%20de%20Frases%20LLM&traducao=Escolha%20o%20idioma%20e%20o%20comportamento%20e%20clique%20em%20Run">
+
+    <div class="tabs">
+      <button class="tab active" data-tab="entrada">Entrada</button>
+      <button class="tab" data-tab="resposta">Resposta</button>
+    </div>
+
+    <!-- ABA PRINCIPAL -->
+    <section id="entrada" class="panel active">
+      <label for="idioma">Idioma</label>
+      <select id="idioma">
+        {% for i in idiomas %}<option>{{ i }}</option>{% endfor %}
+      </select>
+
+      <label for="comportamento">Comportamento</label>
+      <select id="comportamento">
+        {% for c in comportamentos %}<option>{{ c }}</option>{% endfor %}
+      </select>
+
+      <button class="run" id="run">Run</button>
+    </section>
+
+    <!-- ABA DA RESPOSTA TRADUZIDA -->
+    <section id="resposta" class="panel">
+      <div id="resultado" class="vazio">Nenhuma resposta ainda. Volte na aba Entrada e clique em Run.</div>
+    </section>
+  </div>
+
+<script>
+  const tabs = document.querySelectorAll(".tab");
+  const panels = document.querySelectorAll(".panel");
+  function abrir(nome) {
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === nome));
+    panels.forEach(p => p.classList.toggle("active", p.id === nome));
+  }
+  tabs.forEach(t => t.addEventListener("click", () => abrir(t.dataset.tab)));
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  // troca o GIF do topo: o servidor desenha a frase da LLM (e a tradução) no GIF
+  const gif = document.getElementById("gif");
+  function atualizarGif(d) {
+    const url = "/api/gif?" + new URLSearchParams({
+      frase: d.frase, traducao: d.traducao, comportamento: d.comportamento,
+    });
+    gif.classList.add("carregando");
+    gif.onload = gif.onerror = () => gif.classList.remove("carregando");
+    gif.src = url;
+  }
+
+  document.getElementById("run").addEventListener("click", async (e) => {
+    const btn = e.target;
+    const out = document.getElementById("resultado");
+    btn.disabled = true; btn.textContent = "Gerando...";
+    out.className = "vazio"; out.textContent = "Gerando...";
+    abrir("resposta");
+    try {
+      const r = await fetch("/api/gerar", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          idioma: document.getElementById("idioma").value,
+          comportamento: document.getElementById("comportamento").value,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || "Erro desconhecido");
+      atualizarGif(d);
+      out.className = "";
+      out.innerHTML = `
+        <div class="tags"><span class="tag">${esc(d.idioma)}</span><span class="tag">${esc(d.comportamento)}</span></div>
+        <div class="bloco"><div class="rotulo">Frase da LLM</div><div class="frase">${esc(d.frase)}</div></div>
+        <div class="bloco"><div class="rotulo">Tradução (português)</div><div class="traducao">${esc(d.traducao)}</div></div>
+        <details><summary>Prompt enviado</summary><p>${esc(d.prompt)}</p></details>`;
+    } catch (err) {
+      out.className = "erro"; out.textContent = err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Run";
+    }
+  });
+</script>
+</body>
+</html>
